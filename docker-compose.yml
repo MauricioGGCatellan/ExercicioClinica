@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: clinic-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clinic
+      POSTGRES_PASSWORD: clinic123
+      POSTGRES_DB: clinicdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./back/db/db_start.sql:/docker-entrypoint-initdb.d/db_start.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinic -d clinicdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - clinic-net
+
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: clinic-backend
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://clinic:clinic123@db:5432/clinicdb
+      JWT_SECRET: troque-este-segredo
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    networks:
+      - clinic-net
+
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: clinic-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - clinic-net
+
+volumes:
+  db_data:
+
+networks:
+  clinic-net:
+    driver: bridge
