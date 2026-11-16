@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { setAuthUser } from "./auth";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -14,89 +13,83 @@ import {
   Radio,
   InputBase,
   Button,
+  Alert,
 } from "@mui/material";
-
+import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
+import { login as loginRequest } from "./api";
+import { setAuthSession } from "./auth";
 import "./login.css";
 
 type UserRole = "patient" | "professional";
+type LoginLocationState = { from?: string };
 
 export default function LoginPage() {
   const [role, setRole] = useState<UserRole>("patient");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>("");
+
   const navigate = useNavigate();
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  const location = useLocation();
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    const mockUser =
-      role === "patient"
-        ? {
-            name: "Paciente Teste",
-            email,
-            role,
-          }
-        : {
-            name: "Dra. Ana Souza",
-            email,
-            role,
-          };
+    try {
+      const session = await loginRequest(email, password);
 
-    setAuthUser(mockUser);
-    navigate("/");
+      if (session.user.role !== role) {
+        throw new Error(
+          `O usuário informado é do tipo "${session.user.role}", mas você selecionou "${role}".`
+        );
+      }
+
+      setAuthSession(session);
+
+      const state = location.state as LoginLocationState | null;
+      const destination = state?.from ?? "/";
+
+      navigate(destination, { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao autenticar");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <Box component="main" className="login-page">
-      <Paper
-        component="section"
-        elevation={0}
-        className="login-card"
-        aria-label="Tela de login"
-      >
+      <Paper component="section" elevation={0} className="login-card" aria-label="Tela de login">
         <Stack spacing={0}>
-          {/* Identidade visual */}
           <Box className="login-brand">
             <Avatar variant="rounded" className="login-logo">
-              C
+              <LocalHospitalIcon />
             </Avatar>
 
             <Box>
-              <Typography component="h1">
-                Clínica
-              </Typography>
-
-              <Typography component="p">
-                Sistema de acesso
-              </Typography>
+              <Typography component="h1">Clínica</Typography>
+              <Typography component="p">Sistema de acesso</Typography>
             </Box>
           </Box>
 
-          {/* Título */}
-          <Typography component="h2">
-            Entrar
-          </Typography>
+          <Typography component="h2">Entrar</Typography>
 
-          <Typography
-            component="p"
-            className="login-subtitle"
-          >
+          <Typography component="p" className="login-subtitle">
             Acesse como paciente ou profissional para continuar.
           </Typography>
 
-          {/* Formulário */}
-          <Box
-            component="form"
-            className="login-form"
-            onSubmit={handleSubmit}
-          >
-            {/* Tipo de usuário */}
-            <FormControl
-              component="fieldset"
-              className="role-selector"
-            >
-              <FormLabel component="legend">
-                Tipo de usuário
-              </FormLabel>
+          {error ? (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+              {error}
+            </Alert>
+          ) : null}
+
+          <Box component="form" className="login-form" onSubmit={handleSubmit}>
+            <FormControl component="fieldset" className="role-selector">
+              <FormLabel component="legend">Tipo de usuário</FormLabel>
 
               <RadioGroup
                 name="role"
@@ -109,16 +102,12 @@ export default function LoginPage() {
                     <Radio
                       sx={{
                         color: "#54AC4B",
-                        "&.Mui-checked": {
-                          color: "#54AC4B",
-                        },
+                        "&.Mui-checked": { color: "#54AC4B" },
                       }}
                     />
                   }
                   label="Paciente"
-                  className={`role-option ${
-                    role === "patient" ? "active" : ""
-                  }`}
+                  className={`role-option ${role === "patient" ? "active" : ""}`}
                 />
 
                 <FormControlLabel
@@ -127,25 +116,18 @@ export default function LoginPage() {
                     <Radio
                       sx={{
                         color: "#54AC4B",
-                        "&.Mui-checked": {
-                          color: "#54AC4B",
-                        },
+                        "&.Mui-checked": { color: "#54AC4B" },
                       }}
                     />
                   }
                   label="Profissional"
-                  className={`role-option ${
-                    role === "professional" ? "active" : ""
-                  }`}
+                  className={`role-option ${role === "professional" ? "active" : ""}`}
                 />
               </RadioGroup>
             </FormControl>
 
-            {/* E-mail */}
             <Box className="form-field">
-              <Typography component="span">
-                E-mail
-              </Typography>
+              <Typography component="span">E-mail</Typography>
 
               <InputBase
                 type="email"
@@ -158,11 +140,8 @@ export default function LoginPage() {
               />
             </Box>
 
-            {/* Senha */}
             <Box className="form-field">
-              <Typography component="span">
-                Senha
-              </Typography>
+              <Typography component="span">Senha</Typography>
 
               <InputBase
                 type="password"
@@ -175,24 +154,15 @@ export default function LoginPage() {
               />
             </Box>
 
-            {/* Botão */}
             <Button
               type="submit"
               variant="contained"
               className="login-button"
               fullWidth
               disableElevation
-              sx={{
-                textTransform: "none",
-                "&:hover": {
-                  transform: "translateY(-1px)",
-                },
-                "&:active": {
-                  transform: "translateY(0)",
-                },
-              }}
+              disabled={loading}
             >
-              Entrar
+              {loading ? "Entrando..." : "Entrar"}
             </Button>
           </Box>
         </Stack>
