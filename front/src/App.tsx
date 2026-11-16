@@ -7,6 +7,7 @@ import ReportPage from "./ReportPage";
 import SiteLayout from "./SiteLayout";
 
 export default function App() {
+
   return (
     <BrowserRouter>
       <SiteLayout>
