@@ -129,7 +129,8 @@ export default function LoginPage() {
             <Box className="form-field">
               <Typography component="span">E-mail</Typography>
 
-              <InputBase
+              <InputBase 
+                inputProps={{ "aria-label": "E-mail" }}
                 type="email"
                 placeholder="seuemail@exemplo.com"
                 value={email}
@@ -144,6 +145,7 @@ export default function LoginPage() {
               <Typography component="span">Senha</Typography>
 
               <InputBase
+                inputProps={{ "aria-label": "Senha" }}
                 type="password"
                 placeholder="••••••••"
                 value={password}

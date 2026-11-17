@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { clearAuthSession, getAuthUser } from "./auth";
+import AccessibilityWidget from "./AccessibilityWidget";
 
 type SiteLayoutProps = {
   children: React.ReactNode;
@@ -18,6 +19,22 @@ type SiteLayoutProps = {
 export default function SiteLayout({ children }: SiteLayoutProps) {
   const navigate = useNavigate();
   const user = getAuthUser();
+  const buttonStyle ={
+    textTransform: "none",
+    fontWeight: 700,
+    fontSize: "1rem",
+    color: "#FFFFFF",
+    bgcolor: "#54AC4B",
+    borderRadius: 2,
+    px: 3,
+    py: 1.3,
+    minWidth: 135,
+    boxShadow: "0 4px 10px rgba(84, 172, 75, 0.18)",
+    "&:hover": {
+      bgcolor: "#3F8D38",
+      boxShadow: "0 5px 14px rgba(84, 172, 75, 0.25)",
+    },
+  }
 
   function goTo(path: "/agendamentos" | "/laudos") {
     if (!user) {
@@ -45,7 +62,7 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
         sx={{
           bgcolor: "#fff",
           color: "text.primary",
-          borderBottom: "1px solid rgba(84, 172, 75, 0.18)",
+          borderBottom: "3px solid #3F8D38",
         }}
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
@@ -94,14 +111,14 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
           <Stack direction="row" spacing={1}>
             <Button
               onClick={() => goTo("/agendamentos")}
-              sx={{ textTransform: "none", fontWeight: 700 }}
+              sx={buttonStyle}
             >
               Agendamentos
             </Button>
 
             <Button
               onClick={() => goTo("/laudos")}
-              sx={{ textTransform: "none", fontWeight: 700 }}
+              sx={buttonStyle}
             >
               Laudos
             </Button>
@@ -153,6 +170,7 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
       </AppBar>
 
       {children}
+      <AccessibilityWidget />
     </Box>
   );
 }

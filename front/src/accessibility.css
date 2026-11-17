@@ -1,0 +1,30 @@
+/*
+ * Acessibilidade: espaçamento de texto
+ *
+ * Aplicado globalmente enquanto a classe
+ * accessibility-spacing estiver no elemento html.
+ */
+
+html.accessibility-spacing body {
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.12em !important;
+}
+
+/* Aumenta o espaçamento entre linhas */
+html.accessibility-spacing body p,
+html.accessibility-spacing body li,
+html.accessibility-spacing body .MuiTypography-root,
+html.accessibility-spacing body .MuiInputBase-input,
+html.accessibility-spacing body .MuiFormLabel-root,
+html.accessibility-spacing body .MuiButton-root {
+  line-height: 1.8 !important;
+}
+
+/* Campos de texto */
+html.accessibility-spacing body input,
+html.accessibility-spacing body textarea,
+html.accessibility-spacing body label {
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.12em !important;
+  line-height: 1.8 !important;
+}
