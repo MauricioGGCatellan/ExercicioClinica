@@ -5,6 +5,7 @@ import {
   getBody,
   isUuid, 
   badRequest,
+  getDatabaseErrorCode,
   notFound,
   conflict,
 } from "../helpers.js";
@@ -73,10 +74,7 @@ router.post(
       !title.trim() ||
       !text.trim()
     ) {
-      badRequest(
-        ctx,
-        "appointmentId, title and text are required"
-      );
+      badRequest(ctx, "appointmentId, title and text are required");
       return;
     }
 
@@ -90,7 +88,7 @@ router.post(
     try {
       await client.query("BEGIN");
 
-      // Bloqueia o agendamento para evitar publicação/cancelamento concorrentes.
+      // Bloqueia o agendamento durante a criação do laudo.
       const appointmentResult = await client.query(
         `SELECT *
          FROM appointments
@@ -109,28 +107,22 @@ router.post(
 
       if (appointment.status === "cancelled") {
         await client.query("ROLLBACK");
-        conflict(
-          ctx,
-          "Cancelled appointments cannot receive reports"
-        );
+        conflict(ctx, "Cancelled appointments cannot receive reports");
         return;
       }
 
-      const publishedReport = await client.query(
-        `SELECT 1
+      // Verifica qualquer laudo, inclusive rascunhos.
+      const existingReport = await client.query(
+        `SELECT id, status
          FROM reports
          WHERE appointment_id = $1
-           AND status = 'published'
          LIMIT 1`,
         [appointmentId]
       );
 
-      if (publishedReport.rows[0]) {
+      if (existingReport.rows[0]) {
         await client.query("ROLLBACK");
-        conflict(
-          ctx,
-          "This appointment already has a published report"
-        );
+        conflict(ctx, "This appointment already has a report");
         return;
       }
 
@@ -158,8 +150,16 @@ router.post(
 
       ctx.status = 201;
       ctx.body = result.rows[0];
+
     } catch (error) {
       await client.query("ROLLBACK");
+
+      // Violação do índice único do PostgreSQL.
+      if (getDatabaseErrorCode(error) === "23505") {
+        conflict(ctx, "This appointment already has a report");
+        return;
+      }
+
       throw error;
     } finally {
       client.release();
@@ -178,6 +178,7 @@ router.put(
   async (ctx) => {
     const professionalId = ctx.state.user!.sub;
     const reportId = ctx.params.id;
+
     const body = getBody(ctx);
 
     const title = body.title;
@@ -198,53 +199,33 @@ router.put(
       return;
     }
 
-    const client = await pool.connect();
+    const result = await query(
+      `UPDATE reports
+       SET
+         title = $3,
+         content = $4,
+         updated_at = now()
+       WHERE id = $1
+         AND author_professional_id = $2
+         AND status = 'draft'
+       RETURNING *`,
+      [
+        reportId,
+        professionalId,
+        title.trim(),
+        text.trim(),
+      ]
+    );
 
-    try {
-      await client.query("BEGIN");
-
-      const reportResult = await client.query(
-        `SELECT *
-         FROM reports
-         WHERE id = $1
-           AND author_professional_id = $2
-         FOR UPDATE`,
-        [reportId, professionalId]
+    if (result.rowCount === 0) {
+      conflict(
+        ctx,
+        "Report not found, does not belong to you, or is already published"
       );
-
-      const report = reportResult.rows[0];
-
-      if (!report) {
-        await client.query("ROLLBACK");
-        notFound(ctx, "Report not found");
-        return;
-      }
-
-      if (report.status !== "draft") {
-        await client.query("ROLLBACK");
-        conflict(ctx, "Published reports cannot be edited");
-        return;
-      }
-
-      const result = await client.query(
-        `UPDATE reports
-         SET title = $2,
-             content = $3,
-             updated_at = now()
-         WHERE id = $1
-         RETURNING *`,
-        [reportId, title.trim(), text.trim()]
-      );
-
-      await client.query("COMMIT");
-
-      ctx.body = result.rows[0];
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
+      return;
     }
+
+    ctx.body = result.rows[0];
   }
 );
 
@@ -289,17 +270,12 @@ router.patch(
 
       if (report.status !== "draft") {
         await client.query("ROLLBACK");
-        conflict(ctx, "Only draft reports can be published");
+        conflict(ctx, "Published reports cannot be published again");
         return;
       }
 
-      if (!report.appointment_id) {
-        await client.query("ROLLBACK");
-        conflict(ctx, "Report has no associated appointment");
-        return;
-      }
-
-      // Bloqueia o agendamento para evitar publicação após cancelamento.
+      // Bloqueia o agendamento para evitar publicação
+      // de um laudo associado a um agendamento cancelado.
       const appointmentResult = await client.query(
         `SELECT *
          FROM appointments
@@ -312,45 +288,33 @@ router.patch(
 
       if (!appointment || appointment.status === "cancelled") {
         await client.query("ROLLBACK");
-        conflict(
-          ctx,
-          "Cancelled or nonexistent appointments cannot receive published reports"
-        );
-        return;
-      }
-
-      const otherPublishedReport = await client.query(
-        `SELECT 1
-         FROM reports
-         WHERE appointment_id = $1
-           AND id <> $2
-           AND status = 'published'
-         LIMIT 1`,
-        [report.appointment_id, reportId]
-      );
-
-      if (otherPublishedReport.rows[0]) {
-        await client.query("ROLLBACK");
-        conflict(
-          ctx,
-          "This appointment already has another published report"
-        );
+        conflict(ctx, "Cancelled appointments cannot receive published reports");
         return;
       }
 
       const result = await client.query(
         `UPDATE reports
-         SET status = 'published',
-             published_at = now(),
-             updated_at = now()
+         SET
+           status = 'published',
+           published_at = now(),
+           updated_at = now()
          WHERE id = $1
+           AND author_professional_id = $2
+           AND status = 'draft'
          RETURNING *`,
-        [reportId]
+        [reportId, professionalId]
       );
+
+      if (result.rowCount === 0) {
+        await client.query("ROLLBACK");
+        conflict(ctx, "Report cannot be published");
+        return;
+      }
 
       await client.query("COMMIT");
 
       ctx.body = result.rows[0];
+
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

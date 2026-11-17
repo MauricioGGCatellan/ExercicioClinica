@@ -54,6 +54,11 @@ type AppointmentOption = {
   patient_id: string;
   patient_name?: string;
   status: AppointmentStatus;
+
+  // Indica se existe qualquer laudo para o agendamento.
+  has_report: boolean;
+
+  // Opcional: indica especificamente se existe laudo publicado.
   has_published_report?: boolean;
 };
 
@@ -75,6 +80,14 @@ const STATUS_CHIP_COLOR: Record<ReportStatus, "default" | "success"> = {
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatPublicationDate(value: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
@@ -151,13 +164,13 @@ export default function ReportPage() {
     }
   }, []);
 
-  const availableAppointments = useMemo(() => {
-    return appointments.filter(
-      (appointment) =>
-        appointment.status === "scheduled" &&
-        !appointment.has_published_report
-    );
-  }, [appointments]);
+const availableAppointments = useMemo(() => {
+  return appointments.filter(
+    (appointment) =>
+      appointment.status === "scheduled" &&
+      !appointment.has_report
+  );
+}, [appointments]);
 
   function openNewReport() {
     setSelectedReport(null);
@@ -227,7 +240,11 @@ export default function ReportPage() {
       }
 
       setDialogOpen(false);
-      await loadReports();
+
+        await Promise.all([
+        loadReports(),
+        loadAppointments(),
+        ]);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Erro ao salvar laudo");
     } finally {
@@ -373,6 +390,15 @@ export default function ReportPage() {
                         Profissional responsável: {report.professional_name}
                       </Typography>
 
+                        {report.status === "published" && report.published_at && (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.5 }}
+                            >
+                                Publicado em: {formatPublicationDate(report.published_at)}
+                            </Typography>
+                            )}
                       {isProfessional && (
                         <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                           Paciente: {report.patient_name}

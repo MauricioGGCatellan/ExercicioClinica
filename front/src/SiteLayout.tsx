@@ -2,7 +2,8 @@ import { useNavigate } from "react-router-dom";
 import {
   AppBar,
   Box,
-  Button,
+  Button, 
+  ButtonBase,
   Chip,
   Stack,
   Toolbar,
@@ -48,31 +49,47 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
         }}
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
+          <ButtonBase
+            onClick={() => navigate("/")}
+            aria-label="Voltar para a página inicial"
+            sx={{
                 borderRadius: 2,
-                bgcolor: "#54AC4B",
-                color: "#fff",
-                display: "grid",
-                placeItems: "center",
-                fontWeight: 800,
-              }}
+                textAlign: "left",
+                "&:hover": {
+                opacity: 0.85,
+                },
+                "&:focus-visible": {
+                outline: "2px solid #54AC4B",
+                outlineOffset: 4,
+                },
+            }}
             >
-              C
-            </Box>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box
+                sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    bgcolor: "#54AC4B",
+                    color: "#fff",
+                    display: "grid",
+                    placeItems: "center",
+                    fontWeight: 800,
+                }}
+                >
+                C
+                </Box>
 
-            <Box>
-              <Typography fontWeight={800} lineHeight={1.1}>
-                Clínica
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Portal do paciente e profissional
-              </Typography>
-            </Box>
-          </Stack>
+                <Box>
+                <Typography fontWeight={800} lineHeight={1.1}>
+                    Clínica
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Portal do paciente e profissional
+                </Typography>
+                </Box>
+            </Stack>
+        </ButtonBase>
 
           <Stack direction="row" spacing={1}>
             <Button

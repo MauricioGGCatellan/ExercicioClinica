@@ -352,18 +352,28 @@ router.get(
     const params: unknown[] = [];
 
     let sql = `
-      SELECT
-        a.*,
-        u.full_name AS patient_name,
-        EXISTS (
-          SELECT 1
-          FROM reports r
-          WHERE r.appointment_id = a.id
-            AND r.status = 'published'
-        ) AS has_published_report
-      FROM appointments a
-      JOIN users u ON u.id = a.patient_id
-      WHERE 1 = 1
+        SELECT
+            a.*,
+            u.full_name AS patient_name,
+
+            -- Verifica se existe qualquer laudo
+            EXISTS (
+            SELECT 1
+            FROM reports r
+            WHERE r.appointment_id = a.id
+            ) AS has_report,
+
+            -- Verifica especificamente se existe laudo publicado
+            EXISTS (
+            SELECT 1
+            FROM reports r
+            WHERE r.appointment_id = a.id
+                AND r.status = 'published'
+            ) AS has_published_report
+
+        FROM appointments a
+        JOIN users u ON u.id = a.patient_id
+        WHERE 1 = 1
     `;
 
     if (date) {
